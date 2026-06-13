@@ -77,12 +77,22 @@ Reference environment (developed and tested on this setup):
 | Python    | 3.11.2       |
 | PyTorch   | 2.5.1+cu124  |
 
-### Install
-
+### 1. Install Code
 ```bash
-git clone https://github.com/bytedance/Bernini.git bernini && cd bernini
+git clone https://github.com/gluttony-10/Bernini_glut.git
+cd Bernini_glut
 pip install -r requirements.txt
 ```
+
+### 2. Download Model (Optimized for 32GB RAM)
+We have prepared a streamlined version of the model on ModelScope that excludes the bloated raw safetensors, keeping only the optimized `mmgp` weights. This drastically reduces download size and is ready for low-VRAM inference.
+
+You can download the model using `git lfs`:
+```bash
+git lfs install
+git clone https://modelscope.cn/models/Gluttony10/Bernini_glut.git models/Bernini-Diffusers
+```
+*(Make sure the downloaded files are located in the `models/Bernini-Diffusers` folder within your project)*
 
 Optional extras:
 
