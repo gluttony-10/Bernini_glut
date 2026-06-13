@@ -36,10 +36,17 @@ pip install -r requirements.txt
 ### 2. 下载优化版模型
 我们在魔搭社区上准备了该模型的精简版，彻底剔除了臃肿的原始 safetensors 文件，仅保留了优化后的 `mmgp` 权重。
 
-您可以使用 `git lfs` 快速拉取模型：
+我们强烈建议使用 `modelscope` 官方 Python 库来下载模型，这种方式既稳定又不需要依赖系统的 Git LFS 环境。
+
+首先，安装魔搭官方库：
 ```bash
-git lfs install
-git clone https://modelscope.cn/models/Gluttony10/Bernini_glut.git models/Bernini-Diffusers
+pip install modelscope
+```
+
+然后，运行以下 Python 代码，即可将模型极速拉取到指定目录：
+```python
+from modelscope.hub.snapshot_download import snapshot_download
+snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini-Diffusers')
 ```
 *(请确保下载的文件最终准确位于项目内的 `models/Bernini-Diffusers` 目录下)*
 

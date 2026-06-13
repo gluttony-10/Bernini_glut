@@ -36,10 +36,17 @@ pip install -r requirements.txt
 ### 2. Download Optimized Models
 We have prepared a streamlined version of the model on ModelScope that excludes the bloated raw safetensors, keeping only the optimized `mmgp` weights.
 
-You can download the model using `git lfs`:
+You can download the model easily using the `modelscope` Python package. This method is much faster and does not require Git LFS.
+
+First, install modelscope:
 ```bash
-git lfs install
-git clone https://modelscope.cn/models/Gluttony10/Bernini_glut.git models/Bernini-Diffusers
+pip install modelscope
+```
+
+Then, download the model directly into the required directory:
+```python
+from modelscope.hub.snapshot_download import snapshot_download
+snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini-Diffusers')
 ```
 *(Make sure the downloaded files are located exactly in the `models/Bernini-Diffusers` folder within your project)*
 
