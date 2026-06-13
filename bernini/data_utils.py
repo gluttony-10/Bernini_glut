@@ -301,8 +301,9 @@ def tensor_to_bytes(x):
 
 
 def get_vit_features(mllm_model, pixel_values, image_grid_thw):
-    pixel_values = pixel_values.type(mllm_model.dtype).to(mllm_model.device)
-    image_grid_thw = image_grid_thw.to(mllm_model.device)
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    pixel_values = pixel_values.type(mllm_model.dtype).to(device)
+    image_grid_thw = image_grid_thw.to(device)
     with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16):
         image_embeds = mllm_model.visual(pixel_values, grid_thw=image_grid_thw)
     split_sizes = (image_grid_thw.prod(-1) //
@@ -315,8 +316,12 @@ def get_vae_features(vae_model, x):
         x = x.unsqueeze(1)
     elif x.ndim != 4:
         raise ValueError(f"Expected image/video tensor with 3 or 4 dims, got shape={tuple(x.shape)}")
-    x = x.unsqueeze(0).type(vae_model.dtype).to(vae_model.device)
-    with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.float32):
+    is_quantized = any(hasattr(m, 'qweight') for m in vae_model.modules())
+    target_dtype = torch.bfloat16 if is_quantized else torch.float32
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    x = x.unsqueeze(0).to(dtype=target_dtype, device=device)
+    with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16 if is_quantized else torch.float32):
         latent_dist = vae_model.encode(x).latent_dist
     latent_dist = latent_dist.parameters.detach().cpu()
     return tensor_to_bytes(latent_dist)
+

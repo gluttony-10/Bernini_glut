@@ -31,7 +31,8 @@ import torch
 from diffusers.models import AutoencoderKLWan
 from diffusers.video_processor import VideoProcessor
 from tqdm import tqdm
-from transformers import AutoConfig, AutoTokenizer, AutoProcessor, Qwen2_5_VLModel
+from transformers import AutoConfig, AutoTokenizer, AutoProcessor, Qwen2_5_VLModel, UMT5EncoderModel
+from .models.modeling_qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
 
 from .data.bernini_process import bernini_process_sample
 from .data.bernini_template import BerniniTemplate
@@ -169,6 +170,9 @@ def _prompt_clean(text: str) -> str:
 
 def _vae_encode(vae, x: torch.Tensor) -> torch.Tensor:
     """Encode `[1,C,T,H,W]` pixels into normalized VAE latents."""
+    is_quantized = any(hasattr(m, 'qweight') for m in vae.modules())
+    target_dtype = torch.bfloat16 if is_quantized else torch.float32
+    x = x.to(dtype=target_dtype)
     latents = vae.encode(x).latent_dist.mode()
     z = vae.config.z_dim
     mean = torch.tensor(vae.config.latents_mean, dtype=latents.dtype, device=latents.device).view(1, z, 1, 1, 1)
@@ -193,7 +197,9 @@ def _get_t5_text_ids(text, tokenizer, max_length: int = 512):
 
 def _vae_decode(vae, latents: torch.Tensor):
     """Decode VAE latents into a numpy clip `[T, H, W, C]` in [0, 1]."""
-    latents = latents.to(vae.dtype)
+    is_quantized = any(hasattr(m, 'qweight') for m in vae.modules())
+    target_dtype = torch.bfloat16 if is_quantized else torch.float32
+    latents = latents.to(dtype=target_dtype)
     z = vae.config.z_dim
     mean = torch.tensor(vae.config.latents_mean, device=latents.device, dtype=latents.dtype).view(1, z, 1, 1, 1)
     std = torch.tensor(vae.config.latents_std, device=latents.device, dtype=latents.dtype).view(1, z, 1, 1, 1)
@@ -393,6 +399,78 @@ class BerniniPipeline:
         self.text_encoder = model.mllm
         self.connector = getattr(model, "connector", None)
 
+        # Apply safe_to patch to bypass quanto QBytesTensor dtype conversion errors
+        def make_safe_to(module):
+            if module is None:
+                return
+            import types
+            orig_to = module.to
+            def safe_to(self, *args, **kwargs):
+                new_args = []
+                for arg in args:
+                    if isinstance(arg, torch.dtype):
+                        continue
+                    new_args.append(arg)
+                new_kwargs = {k: v for k, v in kwargs.items() if k != 'dtype'}
+                return orig_to(*new_args, **new_kwargs)
+            module.to = types.MethodType(safe_to, module)
+
+        make_safe_to(self.connector)
+        make_safe_to(self.text_encoder)
+        if hasattr(self.model, "vit_decoder"):
+            make_safe_to(self.model.vit_decoder)
+        if hasattr(self.model, "t5_text_encoder"):
+            make_safe_to(self.model.t5_text_encoder)
+        if hasattr(self.model, "diff_dec"):
+            make_safe_to(self.model.diff_dec)
+
+        # Apply no-op to patch to prevent wan_diffusion.py from doing full device moves of the dynamically offloaded transformers
+        def make_qtensor_safe_to(module):
+            if module is None:
+                return
+            import types
+            def no_op_to(self, *args, **kwargs):
+                return self
+            module.to = types.MethodType(no_op_to, module)
+
+        if hasattr(self.model, "diff_dec") and self.model.diff_dec is not None:
+            if hasattr(self.model.diff_dec, "transformer") and self.model.diff_dec.transformer is not None:
+                make_qtensor_safe_to(self.model.diff_dec.transformer)
+            if hasattr(self.model.diff_dec, "transformer_2") and self.model.diff_dec.transformer_2 is not None:
+                make_qtensor_safe_to(self.model.diff_dec.transformer_2)
+
+        # Setup global mmgp offload management for all major submodules
+        try:
+            from mmgp import offload
+            pipe_dict = {
+                "mllm": self.model.mllm,
+                "vae": self.vae,
+            }
+            if getattr(self.model, "t5_text_encoder", None) is not None:
+                pipe_dict["t5"] = self.model.t5_text_encoder
+            if hasattr(self.model, "diff_dec") and self.model.diff_dec is not None:
+                if hasattr(self.model.diff_dec, "transformer") and self.model.diff_dec.transformer is not None:
+                    pipe_dict["transformer"] = self.model.diff_dec.transformer
+                if hasattr(self.model.diff_dec, "transformer_2") and self.model.diff_dec.transformer_2 is not None:
+                    pipe_dict["transformer_2"] = self.model.diff_dec.transformer_2
+            
+            logger.info("Initializing global mmgp.offload.all for all components...")
+            offload.all(
+                pipe_dict,
+                pinnedMemory=False,
+                quantizeTransformer=False,
+                convertWeightsFloatTo=torch.bfloat16,
+                vram_safety_coefficient=0.85,
+                verboseLevel=2,
+                budgets={
+                    "transformer": 4000,
+                    "transformer_2": 4000,
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to initialize global mmgp.offload.all: {e}")
+
+
     @classmethod
     def from_pretrained(
         cls,
@@ -401,17 +479,88 @@ class BerniniPipeline:
         device="cuda",
         **config_overrides,
     ) -> "BerniniPipeline":
+        import copy
         config = BerniniConfig.from_pretrained(config_dir, **config_overrides)
         _localize_bernini_config(config, config_dir)
         if ckpt is None: ckpt = config_dir
-        model = BerniniModel.from_pretrained(
-            ckpt,
-            subfolder=config.bernini_ckpt_subfolder,
-            config=config,
-        )
+
+        bernini_mmgp_path = os.path.join(ckpt, config.bernini_ckpt_subfolder or "bernini", "model-mmgp.safetensors")
+        if os.path.exists(bernini_mmgp_path):
+            logger.info(f"Loading Bernini core model using mmgp from {bernini_mmgp_path}...")
+            from mmgp import offload
+            temp_config = copy.deepcopy(config)
+            temp_config.t5_text_encoder_path = None
+            temp_config.mllm_config_path = None
+            
+            model = offload.fast_load_transformers_model(
+                bernini_mmgp_path,
+                do_quantize=False,
+                modelClass=BerniniModel,
+                forcedConfigPath=os.path.join(ckpt, "config.json"),
+                configKwargs=dict(
+                    base_dir=None,
+                    diff_dec_config_path=ckpt,
+                    t5_text_encoder_path=None,
+                    mllm_config_path=None,
+                    transformer_config_path=os.path.join(ckpt, "transformer_config.json"),
+                    transformer_2_config_path=os.path.join(ckpt, "transformer_2_config.json"),
+                ),
+            )
+            model.config = config
+            model.use_t5_encoder = config.t5_text_encoder_path is not None
+            model.t5_max_sequence_length = getattr(config, 't5_max_sequence_length', 512)
+            
+            # Manually load MLLM
+            if config.mllm_config_path is not None:
+                mllm_mmgp_path = os.path.join(config.mllm_config_path, config.mllm_subfolder or "", "model-mmgp.safetensors")
+                if os.path.exists(mllm_mmgp_path):
+                    logger.info(f"Loading MLLM inside core model using mmgp from {mllm_mmgp_path}...")
+                    model.mllm = offload.fast_load_transformers_model(
+                        mllm_mmgp_path,
+                        do_quantize=False,
+                        modelClass=Qwen2_5_VLForConditionalGeneration,
+                        forcedConfigPath=os.path.join(config.mllm_config_path, config.mllm_subfolder or "", "config.json"),
+                    )
+                else:
+                    model.mllm = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                        config.mllm_config_path,
+                        subfolder=config.mllm_subfolder,
+                        attn_implementation=config.mllm_attn_implementation,
+                    )
+                import torch.nn as nn
+                model.mask_tokens = nn.Parameter(torch.randn(1, model.num_mask_token, model.mllm.config.hidden_size) * 0.01)
+            
+            # Manually load T5 Text Encoder
+            if model.use_t5_encoder:
+                t5_mmgp_path = os.path.join(config.t5_text_encoder_path, config.t5_text_encoder_subfolder or "", "model-mmgp.safetensors")
+                if os.path.exists(t5_mmgp_path):
+                    logger.info(f"Loading T5 Encoder inside core model using mmgp from {t5_mmgp_path}...")
+                    model.t5_text_encoder = offload.fast_load_transformers_model(
+                        t5_mmgp_path,
+                        do_quantize=False,
+                        modelClass=UMT5EncoderModel,
+                        forcedConfigPath=os.path.join(config.t5_text_encoder_path, config.t5_text_encoder_subfolder or "", "config.json"),
+                    )
+                else:
+                    model.t5_text_encoder = UMT5EncoderModel.from_pretrained(
+                        config.t5_text_encoder_path,
+                        subfolder=config.t5_text_encoder_subfolder,
+                        torch_dtype=torch.bfloat16,
+                    )
+                model.t5_text_encoder.eval()
+                for param in model.t5_text_encoder.parameters():
+                    param.requires_grad = False
+        else:
+            model = BerniniModel.from_pretrained(
+                ckpt,
+                subfolder=config.bernini_ckpt_subfolder,
+                config=config,
+            )
+            
         # transformer_1 is loaded in diff_dec, while transformer_2 is loaded in diff_dec_low and then
         # attached back to diff_dec before sampling.
-        setattr(model.diff_dec, "transformer_2", model.diff_dec_low.transformer_2)
+        if getattr(model, "diff_dec_low", None) is not None:
+            setattr(model.diff_dec, "transformer_2", model.diff_dec_low.transformer_2)
         model.eval()
 
         t5_tokenizer = AutoTokenizer.from_pretrained(
@@ -426,13 +575,25 @@ class BerniniPipeline:
             trust_remote_code=True,
         )
 
-        vae = AutoencoderKLWan.from_pretrained(
-            config.vae_model_path,
-            subfolder=config.vae_subfolder,
-            torch_dtype=torch.float32,
-        )
+        vae_mmgp_path = os.path.join(config.vae_model_path, config.vae_subfolder or "vae", "diffusion_pytorch_model-mmgp.safetensors")
+        if os.path.exists(vae_mmgp_path):
+            logger.info(f"Loading VAE using mmgp from {vae_mmgp_path}...")
+            from mmgp import offload
+            vae = offload.fast_load_transformers_model(
+                vae_mmgp_path,
+                do_quantize=False,
+                modelClass=AutoencoderKLWan,
+                forcedConfigPath=os.path.join(config.vae_model_path, config.vae_subfolder or "vae", "config.json"),
+            )
+        else:
+            vae = AutoencoderKLWan.from_pretrained(
+                config.vae_model_path,
+                subfolder=config.vae_subfolder,
+                torch_dtype=torch.float32,
+            )
         vae.eval()
         vae.requires_grad_(False)
+
         return cls(config, model, vae, t5_tokenizer, vit_processor, device)
 
     @torch.no_grad()
@@ -528,7 +689,7 @@ class BerniniPipeline:
             image_grid_thw = image_inputs['image_grid_thw']
             image_embeds = get_vit_features(mllm_model, pixel_values, image_grid_thw)
             row_data['image_embeds'] = [tensor_to_bytes(embed.detach().cpu()) for embed in image_embeds]
-            row_data['image_grid_thw'] = image_grid_thw.numpy().tolist()
+            row_data['image_grid_thw'] = image_grid_thw.cpu().numpy().tolist()
             # VAE
             image_tensors = [vae_transform(img) for img in images]
             image_vae_latents = []
@@ -586,7 +747,7 @@ class BerniniPipeline:
                 vid_grid_thw = video_inputs['video_grid_thw']
                 video_embeds = get_vit_features(mllm_model, vid_pixel_values, vid_grid_thw)
                 row_data['video_embeds'].extend([tensor_to_bytes(embed.detach().cpu()) for embed in video_embeds])
-                row_data['video_grid_thw'].extend(vid_grid_thw.numpy().tolist())
+                row_data['video_grid_thw'].extend(vid_grid_thw.cpu().numpy().tolist())
                 del video_inputs
                 vae_idx = smart_video_nframes(
                     total_frames=video_reader.length, video_fps=video_reader.fps,
@@ -821,7 +982,7 @@ class BerniniPipeline:
                 )
 
                 all_target_vit_embed = input_embeds[:, visual_output_token_mask, :]
-                all_target_vit_embed[:, mask_to_pred.nonzero(as_tuple=True)[0]] = cur_pred_vit_embed
+                all_target_vit_embed[:, mask_to_pred.nonzero(as_tuple=True)[0]] = cur_pred_vit_embed.to(all_target_vit_embed.dtype)
                 input_embeds[:, visual_output_token_mask] = all_target_vit_embed
                 uncond_input_embeds[:, uncond_visual_output_token_mask] = all_target_vit_embed
                 imgcond_input_embeds[:, imgcond_visual_output_token_mask] = all_target_vit_embed
@@ -867,6 +1028,10 @@ class BerniniPipeline:
             cond_embeds_wtxt_wvit = cond_outputs['diff_mllm_contexts']
             cond_embeds_wtxt_wovit = cond_embeds_wtxt_wvit[:, diff_mllm_context_txt_mask]
             cond_embeds_wotxt_wvit = cond_embeds_wtxt_wvit[:, diff_mllm_context_vit_mask]
+
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
 
         return dict(
             cond_embeds_wtxt_wvit=cond_embeds_wtxt_wvit,
@@ -936,9 +1101,6 @@ class BerniniPipeline:
         t5_prompt = _prompt_clean(system_prompt + raw_prompt)
         logger.info("prompt: %s", t5_prompt)
         # ---- encode visual conditions on the VAE ----
-        self.vae.to(device)
-        self.model.mllm.to(device)
-        self.model.mllm.to(self.weight_dtype)
         if self.connector is not None:
             self.connector.to(device=device, dtype=self.weight_dtype)
         if getattr(self.model, "vit_decoder", None) is not None:
@@ -962,7 +1124,7 @@ class BerniniPipeline:
             vit_fps=vit_fps,
             vae_fps=vae_fps,
         )
-        self.vae.to("cpu")
+        # self.vae.to("cpu") is handled by mmgp.offload.all
         torch.cuda.empty_cache()
         input_dict = self.transform_inputs(
             sample,
@@ -1051,15 +1213,16 @@ class BerniniPipeline:
         cond_embeds_wotxt_wvit = ret['cond_embeds_wotxt_wvit']
         cond_embeds_wotxt_wovit = ret['cond_embeds_wotxt_wovit']
 
-        self.model.mllm.to('cpu')
         if self.connector is not None:
             self.connector.to('cpu')
+
         if getattr(self.model, "vit_decoder", None) is not None:
             self.model.vit_decoder.to('cpu')
+
+        import gc
+        gc.collect()
         torch.cuda.empty_cache()
 
-        if getattr(self.model, "t5_text_encoder", None) is not None:
-            self.model.t5_text_encoder.to(device)
         t5_input_ids, t5_attention_mask = _get_t5_text_ids(
             t5_prompt, self.t5_tokenizer,
         )
@@ -1079,8 +1242,9 @@ class BerniniPipeline:
         if cond_embeds_wotxt_wvit is not None:
             cond_embeds_wotxt_wvit = torch.cat([neg_t5_embeds, cond_embeds_wotxt_wvit], dim=1)
         cond_embeds_wotxt_wovit = torch.cat([neg_t5_embeds, cond_embeds_wotxt_wovit], dim=1)
-        if getattr(self.model, "t5_text_encoder", None) is not None:
-            self.model.t5_text_encoder.to('cpu')
+
+        import gc
+        gc.collect()
         torch.cuda.empty_cache()
 
         def is_image_vae_shape(shape):
@@ -1163,9 +1327,7 @@ class BerniniPipeline:
         if not write_output:
             return None
 
-        self.vae.to(device)
         output = _vae_decode(self.vae, latents)
-        self.vae.to("cpu")
         torch.cuda.empty_cache()
 
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)

@@ -353,7 +353,7 @@ class BerniniTemplate(Qwen2VLTemplate):
             tokenized_example["labels"] = labels
         
         # Process masks
-        all_target_vit_token_num = visual_output_token_mask.sum()
+        all_target_vit_token_num = visual_output_token_mask.sum().item()
         if all_target_vit_token_num > 0:
             mask_vit_token_num = int(np.ceil(all_target_vit_token_num * vit_mask_ratio))
             all_tgt_vit_token_idx = list(range(all_target_vit_token_num))

@@ -112,6 +112,9 @@ def add_common_args(parser):
     g = parser.add_argument_group("prompt enhancer")
     g.add_argument("--use_pe", action="store_true", help="enhance the prompt via an OpenAI-compatible endpoint")
     g.add_argument("--pe_model", default=None, help="prompt-enhancer model name")
+    
+    g = parser.add_argument_group("memory optimization")
+    g.add_argument("--low_vram", action="store_true", help="Skip loading transformer_2 to fit into 32GB RAM")
     return parser
 
 
@@ -141,6 +144,7 @@ def build_pipeline(args, device):
             device=device,
             use_unipc=args.use_unipc,
             use_src_id_rotary_emb=args.use_src_tgt_id,
+            skip_transformer_2=args.low_vram,
         )
 
     if (args.high_noise_ckpt is None) != (args.low_noise_ckpt is None):

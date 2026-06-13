@@ -106,6 +106,29 @@ Optional extras:
 
 ## 🚀 Usage
 
+### Low RAM Optimization (32GB RAM / 24GB VRAM)
+
+By default, the full Bernini pipeline requires over 34GB of physical RAM to hold `transformer`, `transformer_2`, `t5`, and the `mllm`. On systems with 32GB RAM, this forces the OS into heavy virtual memory swapping, slowing down inference from seconds per step to minutes per step.
+
+To solve this, we provide a **`--low_vram`** option. Passing this flag will skip loading `transformer_2` (the low-noise refinement model). This reduces RAM usage by ~13.6GB, completely eliminating swap bottlenecks and bringing generation times down significantly.
+
+**Deployment Command:**
+We have provided a ready-to-use startup script: `run_low_ram.bat`.
+This script automatically sets `expandable_segments:True` to prevent PyTorch memory fragmentation and runs the inference script with the `--low_vram` flag.
+
+Simply double-click **`run_low_ram.bat`** in Windows, or run it via command line:
+```cmd
+.\run_low_ram.bat
+```
+
+Alternatively, you can manually run:
+```bash
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
+python infer_single_gpu.py --config models/Bernini-Diffusers --case assets/testcases/v2v/v2v_case1.json --low_vram
+```
+
+---
+
 Weight download and per-task inference commands are model-specific — follow
 **[docs/bernini.md](docs/bernini.md)** or
 **[docs/bernini_r.md](docs/bernini_r.md)**. The pieces below are shared by both

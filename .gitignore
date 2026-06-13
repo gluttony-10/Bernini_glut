@@ -25,4 +25,8 @@ downloads/
 .glut/
 .gitea/
 
+# temporary tools
+fix_inputs.py
+monitor_and_shutdown.py
+
 .DS_Store
