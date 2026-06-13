@@ -46,9 +46,9 @@ pip install modelscope
 然后，运行以下 Python 代码，即可将模型极速拉取到指定目录：
 ```python
 from modelscope.hub.snapshot_download import snapshot_download
-snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini-Diffusers')
+snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 ```
-*(请确保下载的文件最终准确位于项目内的 `models/Bernini-Diffusers` 目录下)*
+*(请确保下载的文件最终准确位于项目内的 `models/Bernini_glut` 目录下)*
 
 ## 🚀 使用方法
 
@@ -67,7 +67,7 @@ snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini-Diffusers
 如果您希望手动运行其他案例，请使用以下命令：
 ```bash
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
-python infer_single_gpu.py --config models/Bernini-Diffusers --case assets/testcases/v2v/v2v_case1.json --low_vram
+python infer_single_gpu.py --config models/Bernini_glut --case assets/testcases/v2v/v2v_case1.json --low_vram
 ```
 
 ### 样例文件 (Case files)

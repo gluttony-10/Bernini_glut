@@ -46,9 +46,9 @@ pip install modelscope
 Then, download the model directly into the required directory:
 ```python
 from modelscope.hub.snapshot_download import snapshot_download
-snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini-Diffusers')
+snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 ```
-*(Make sure the downloaded files are located exactly in the `models/Bernini-Diffusers` folder within your project)*
+*(Make sure the downloaded files are located exactly in the `models/Bernini_glut` folder within your project)*
 
 ## 🚀 Usage
 
@@ -67,7 +67,7 @@ Simply double-click **`run_low_ram.bat`** in Windows, or run it via command line
 Alternatively, you can manually run:
 ```bash
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
-python infer_single_gpu.py --config models/Bernini-Diffusers --case assets/testcases/v2v/v2v_case1.json --low_vram
+python infer_single_gpu.py --config models/Bernini_glut --case assets/testcases/v2v/v2v_case1.json --low_vram
 ```
 
 ### Case files

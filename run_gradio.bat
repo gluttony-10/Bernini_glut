@@ -8,7 +8,7 @@ echo ===================================================
 set CUDA_VISIBLE_DEVICES=0
 
 :: Run Gradio demo using local conda environment python executable
-.glut\python.exe gradio_demo.py --config models/Bernini-Diffusers --port 7860
+.glut\python.exe gradio_demo.py --config models/Bernini_glut --port 7860
 
 if %errorlevel% neq 0 (
     echo.
