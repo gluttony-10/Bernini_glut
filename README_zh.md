@@ -55,19 +55,19 @@ snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 ### 小内存极速模式 (32GB RAM / 24GB VRAM)
 
 **一键傻瓜式启动：**
-我们提供了一个开箱即用的启动脚本：`run_low_ram.bat`。
+我们提供了一个开箱即用的本地推理测试脚本：`03低显存推理测试.bat`。
 该脚本会自动设置 `expandable_segments:True` 环境变量来防止 PyTorch 显存碎片化导致 OOM，并自动加上 `--low_vram` 参数运行推理。
 
-在 Windows 系统下，只需双击 **`run_low_ram.bat`** 即可，或在命令行运行：
+在 Windows 系统下，只需双击 **`03低显存推理测试.bat`** 即可，或在命令行运行：
 ```cmd
-.\run_low_ram.bat
+.\03低显存推理测试.bat
 ```
 
 **手动执行命令：**
 如果您希望手动运行其他案例，请使用以下命令：
-```bash
+```cmd
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
-python infer_single_gpu.py --config models/Bernini_glut --case assets/testcases/v2v/v2v_case1.json --low_vram
+python infer_single_gpu.py --config models/Bernini-Diffusers --case assets/testcases/v2v/v2v_case1.json --low_vram
 ```
 
 ### 样例文件 (Case files)
@@ -75,16 +75,20 @@ python infer_single_gpu.py --config models/Bernini_glut --case assets/testcases/
 
 ### 提示词增强器 (强烈推荐)
 在命令后加上 `--use_pe` 能够通过兼容 OpenAI 的大语言模型接口来增强您的提示词，获得最佳的生成质量。配置方法如下：
-```bash
+```cmd
 export BERNINI_PE_API_KEY=...      # 或 OPENAI_API_KEY
 export BERNINI_PE_BASE_URL=...     # 或 OPENAI_BASE_URL
 export BERNINI_PE_MODEL=...        # 支持视觉的聊天模型
 ```
 
 ### 网页图形界面 (Gradio GUI)
-您也可以通过我们提供的 batch 脚本直接启动交互式的网页版 UI：
+您也可以通过提供的 batch 脚本启动交互式的网页版 UI（默认普通显存模式）：
 ```cmd
-.\run_gradio.bat
+.\01启动网页界面.bat
+```
+针对 32GB 物理内存 / 24GB 显存设备，推荐使用低内存网页启动脚本：
+```cmd
+.\02启动低内存网页界面.bat
 ```
 
 ## 📑 引用与致谢

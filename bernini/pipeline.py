@@ -504,6 +504,7 @@ class BerniniPipeline:
                     mllm_config_path=None,
                     transformer_config_path=os.path.join(ckpt, "transformer_config.json"),
                     transformer_2_config_path=os.path.join(ckpt, "transformer_2_config.json"),
+                    skip_transformer_2=getattr(config, "skip_transformer_2", False),
                 ),
             )
             model.config = config

@@ -20,10 +20,10 @@ results/
 *.pt
 *.pth
 *.ckpt
-models/
-downloads/
-.glut/
-.gitea/
+/models/
+/downloads/
+/.glut/
+/.gitea/
 
 # temporary tools
 fix_inputs.py

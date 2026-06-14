@@ -703,6 +703,8 @@ def parse_args():
     parser.add_argument("--use_pe", action="store_true",
                         help="instantiate the prompt rewriter at startup")
     parser.add_argument("--pe_model", type=str, default=None)
+    parser.add_argument("--low_vram", action="store_true",
+                        help="Skip loading transformer_2 to fit into 32GB RAM")
     return parser.parse_args()
 
 
