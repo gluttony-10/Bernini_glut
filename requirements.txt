@@ -39,7 +39,7 @@ gradio==6.15.0
 # Multi-GPU sequence parallel (Ulysses) needs Open-VeOmni (Apache-2.0, Python 3.11).
 # Use --no-deps so VeOmni does not pull in a different torch build and override
 
-# the pinned torch==2.5.1+cu124 above:
+# the pinned torch==2.7.0+cu128 above:
 #   pip install --no-deps git+https://github.com/ByteDance-Seed/VeOmni.git@v0.1.10
 # Single-GPU inference does NOT need it.
 #

@@ -40,7 +40,7 @@ conda create --prefix ./.glut python=3.11 -y
 # 激活该虚拟环境
 conda activate ./.glut
 
-# 安装项目依赖包 (默认已配置 CUDA 12.8/13.0 支持)
+# 安装项目依赖包 (默认已配置 CUDA 12.8 支持)
 pip install -r requirements.txt
 ```
 

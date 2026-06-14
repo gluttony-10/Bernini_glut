@@ -40,7 +40,7 @@ conda create --prefix ./.glut python=3.11 -y
 # Activate the local environment
 conda activate ./.glut
 
-# Install package dependencies (pre-configured with CUDA 12.8/13.0 wheel support)
+# Install package dependencies (pre-configured with CUDA 12.8 wheel support)
 pip install -r requirements.txt
 ```
 
