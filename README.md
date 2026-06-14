@@ -50,6 +50,11 @@ snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 ```
 *(Make sure the downloaded files are located exactly in the `models/Bernini_glut` folder within your project)*
 
+> [!TIP]
+> **💡 Disk Space & Dependency Cleanup Tips**
+> - **Remove redundant large weights (Hugging Face users only)**: Since the pipeline runs entirely in `mmgp` offloaded mode, if you cloned/downloaded weights from the original Hugging Face repo, you can safely delete all original large `.safetensors` weight files (such as `model.safetensors`, etc.) in the subfolders of `models/Bernini_glut` and keep only files with `*-mmgp.safetensors` suffixes. This will save nearly 50% (tens of gigabytes) of disk space!
+> - **Skip optional dependencies**: When running on a single GPU or starting via `01运行程序.bat`, you **do not** need to install `VeOmni` (which is only required for multi-GPU Ulysses sequence parallel inference tests). Keep your environment clean.
+
 ## 🚀 Usage
 
 ### Single GPU Inference Test

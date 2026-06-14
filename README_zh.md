@@ -50,6 +50,11 @@ snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 ```
 *(请确保下载的文件最终准确位于项目内的 `models/Bernini_glut` 目录下)*
 
+> [!TIP]
+> **💡 磁盘空间与依赖瘦身建议**
+> - **删除无用大权重（限 Hugging Face 用户）**：本项目已全自动切换为高能的 `mmgp` 分段加载模式。若您是从原版 Hugging Face 下载的权重，可安全删除 `models/Bernini_glut` 各子目录中所有**非 `*-mmgp.safetensors` 后缀的原始大型权重文件**（如 `model.safetensors` 等），仅保留 `*-mmgp.safetensors` 即可，可省下数十 GB（近 50%）磁盘空间！
+> - **无用依赖可不装**：单卡运行或使用 `01运行程序.bat` 网页版时，您**完全不需要**安装 Ulysses 多卡并行所需的 `VeOmni` 依赖，保持环境纯净即可。
+
 ## 🚀 使用方法
 
 ### 单卡推理测试
