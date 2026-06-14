@@ -47,6 +47,40 @@ from .weights import load_weights
 logger = logging.getLogger("bernini.pipeline")
 
 
+def get_system_ram_gb() -> float:
+    """Detect total system physical RAM in GB."""
+    try:
+        import os
+        page_size = os.sysconf('SC_PAGE_SIZE')
+        phys_pages = os.sysconf('SC_PHYS_PAGES')
+        return (page_size * phys_pages) / (1024 ** 3)
+    except Exception:
+        pass
+
+    try:
+        import ctypes
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+        stat = MEMORYSTATUSEX()
+        stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+        return stat.ullTotalPhys / (1024 ** 3)
+    except Exception:
+        pass
+
+    return 64.0  # default fallback
+
+
 def _resolve_cached_hf_path(path: Optional[str]) -> Optional[str]:
     """Resolve a HF repo id (or repo id + subpath) to a local cached path.
 
@@ -476,27 +510,45 @@ class BerniniPipeline:
                     logger.warning(f"Could not query CUDA memory: {mem_err}")
             
             # Decide the budget dynamically
+            # 12G 16G 24G 32G 40G 80G 96G 各是一档
             dit_budget = 4000
             if free_gpu_mem_mb > 0:
-                if free_gpu_mem_mb > 35000:
-                    dit_budget = 14000  # For A100/H100/A800 (40GB/80GB)
-                elif free_gpu_mem_mb > 20000:
-                    dit_budget = 9000   # For RTX 3090/4090/A10G (24GB)
-                elif free_gpu_mem_mb > 14000:
-                    dit_budget = 6000   # For 16GB VRAM GPUs
+                if free_gpu_mem_mb > 85000:      # 96GB VRAM 档
+                    dit_budget = 44000
+                elif free_gpu_mem_mb > 70000:    # 80GB VRAM 档
+                    dit_budget = 36000
+                elif free_gpu_mem_mb > 35000:    # 40GB VRAM 档
+                    dit_budget = 16000
+                elif free_gpu_mem_mb > 27000:    # 32GB VRAM 档
+                    dit_budget = 13000
+                elif free_gpu_mem_mb > 20000:    # 24GB VRAM 档
+                    dit_budget = 10000
+                elif free_gpu_mem_mb > 14000:    # 16GB VRAM 档
+                    dit_budget = 6500
+                elif free_gpu_mem_mb > 10000:    # 12GB VRAM 档
+                    dit_budget = 4000
                 else:
-                    dit_budget = 4000   # Default conservative budget
+                    dit_budget = 2000            # < 10GB VRAM
             
             logger.info(f"Setting mmgp offload budgets for 'transformer' and 'transformer_2' to {dit_budget} MB.")
+            
+            # Enable pinned memory if system physical RAM is large enough (>= 40.0 GB)
+            ram_gb = get_system_ram_gb()
+            pinned_memory = False
+            if ram_gb >= 40.0:
+                pinned_memory = True
+                logger.info(f"System RAM is {ram_gb:.2f} GB (>= 40.0 GB), enabling pinned memory for faster CPU-GPU transfers.")
+            else:
+                logger.info(f"System RAM is {ram_gb:.2f} GB (< 40.0 GB), pinned memory disabled to conserve RAM.")
             
             logger.info("Initializing global mmgp.offload.all for all components...")
             offload.all(
                 pipe_dict,
-                pinnedMemory=False,
+                pinnedMemory=pinned_memory,
                 quantizeTransformer=False,
                 convertWeightsFloatTo=get_target_dtype(),
                 vram_safety_coefficient=0.85,
-                verboseLevel=2,
+                verboseLevel=1,  # Set verboseLevel to 1 to hide detailed loading/unloading block-level transfer logs
                 budgets={
                     "transformer": dit_budget,
                     "transformer_2": dit_budget,
