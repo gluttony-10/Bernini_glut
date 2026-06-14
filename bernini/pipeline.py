@@ -283,6 +283,7 @@ class BerniniRendererPipeline:
         system_prompt: str = "",
         output_path: str = "output.mp4",
         write_output: bool = True,
+        progress_callback=None,
         **kwargs
     ):
         """Generate one clip and write it to `output_path`.
@@ -297,6 +298,8 @@ class BerniniRendererPipeline:
         device = self.device
         prompt = system_prompt + _prompt_clean(prompt)
         logger.info("prompt: %s", prompt)
+        if progress_callback:
+            progress_callback(0.08, "Preprocessing visual inputs...")
         prompt_ids, prompt_mask = self._tokenize(prompt)
         neg_ids, neg_mask = self._tokenize(neg_prompt)
 
@@ -339,6 +342,8 @@ class BerniniRendererPipeline:
             h, w = height, width
         h, w = make_divisible(h, 16), make_divisible(w, 16)
 
+        if progress_callback:
+            progress_callback(0.20, "Running diffusion sampling...")
         # ---- diffusion sampling ----
         latents = self.model.sample(
             input_ids=prompt_ids.to(device),
@@ -363,6 +368,7 @@ class BerniniRendererPipeline:
             eta=eta,
             norm_threshold=norm_threshold,
             momentum=momentum,
+            progress_callback=progress_callback,
         )
         self.model.to("cpu")
         torch.cuda.empty_cache()
@@ -370,15 +376,21 @@ class BerniniRendererPipeline:
         if not write_output:
             return None
 
+        if progress_callback:
+            progress_callback(0.92, "Decoding VAE latents...")
         # ---- decode + save ----
         self.vae.to(device)
         output = _vae_decode(self.vae, latents)
         self.vae.to("cpu")
         torch.cuda.empty_cache()
 
+        if progress_callback:
+            progress_callback(0.97, "Saving output...")
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         save_output(output, output_path, fps=fps)
         logger.info("saved -> %s  (%d frames, %dx%d)", output_path, output.shape[0], h, w)
+        if progress_callback:
+            progress_callback(1.0, "Done!")
         return output_path
 
 class BerniniPipeline:
@@ -894,6 +906,7 @@ class BerniniPipeline:
         vit_denoising_step=1,
         vit_txt_cfg=1.4,
         vit_img_cfg=1.2,
+        progress_callback=None,
     ):  
         device = input_embeds.device
         mask_ratio_generator_infer = lambda s, totals: np.cos(math.pi / 2.0 * (s + 1) / totals)
@@ -916,6 +929,8 @@ class BerniniPipeline:
 
         if self.model.vit_decoder is not None:
             for step in tqdm(range(planning_step), desc=f"Sample FM+MAR clip in {planning_step} steps"):
+                if progress_callback is not None:
+                    progress_callback(0.15 + (step / planning_step) * 0.20, f"ViT planning: step {step+1}/{planning_step}")
                 if self.connector is not None:
                     connector_param = next(self.connector.parameters())
                     if connector_param.device != input_embeds.device or connector_param.dtype != input_embeds.dtype:
@@ -1078,6 +1093,7 @@ class BerniniPipeline:
         write_output: bool = True,
         use_truncate: bool = True,
         max_sequence_length: int = 512,
+        progress_callback=None,
     ):
         """Generate one clip and write it to `output_path`.
 
@@ -1111,6 +1127,8 @@ class BerniniPipeline:
             min_image_size=240,
             image_stride=16,
         )
+        if progress_callback:
+            progress_callback(0.08, "Preprocessing visual inputs...")
         sample = self.preprocess_inputs(
             raw_prompt,
             mllm_model=self.model.mllm,
@@ -1207,6 +1225,7 @@ class BerniniPipeline:
             vit_txt_cfg=vit_txt_cfg,
             vit_img_cfg=vit_img_cfg,
             vit_denoising_step=vit_denoising_step,
+            progress_callback=progress_callback,
         )
         
         cond_embeds_wtxt_wvit = ret['cond_embeds_wtxt_wvit']
@@ -1323,15 +1342,22 @@ class BerniniPipeline:
             flow_shift=flow_shift,
             seed=seed,
             device=device,
+            progress_callback=progress_callback,
         )
 
         if not write_output:
             return None
 
+        if progress_callback:
+            progress_callback(0.92, "Decoding VAE latents...")
         output = _vae_decode(self.vae, latents)
         torch.cuda.empty_cache()
 
+        if progress_callback:
+            progress_callback(0.97, "Saving output video...")
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         save_output(output, output_path, fps=vae_fps)
         logger.info("saved -> %s  (%d frames, %dx%d)", output_path, output.shape[0], height, width)
+        if progress_callback:
+            progress_callback(1.0, "Done!")
         return output_path

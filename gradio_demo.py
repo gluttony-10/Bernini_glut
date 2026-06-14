@@ -387,7 +387,7 @@ def _broadcast(request):
         dist.broadcast_object_list(data, src=0, device=torch.device("cpu"))
 
 
-def _run_pipeline(task_type: str, *, write_output: bool, kwargs: dict):
+def _run_pipeline(task_type: str, *, write_output: bool, kwargs: dict, progress_callback=None):
     if _is_full_bernini_pipeline():
         full_kwargs = dict(kwargs)
         if isinstance(full_kwargs.get("video"), list):
@@ -396,8 +396,8 @@ def _run_pipeline(task_type: str, *, write_output: bool, kwargs: dict):
                 full_kwargs["video"] = None
             elif len(full_kwargs["video"]) == 1:
                 full_kwargs["video"] = full_kwargs["video"][0]
-        return PIPELINE(task_type, write_output=write_output, **full_kwargs)
-    return PIPELINE(write_output=write_output, **kwargs)
+        return PIPELINE(task_type, write_output=write_output, progress_callback=progress_callback, **full_kwargs)
+    return PIPELINE(write_output=write_output, progress_callback=progress_callback, **kwargs)
 
 
 def _run_pe_on_rank0(task_type, prompt, video, image, images):
@@ -483,8 +483,14 @@ def generate_handler(
 
     _broadcast({"action": "generate", "task_type": task_type, "kwargs": dict(kwargs)})
 
+    def progress_callback(fraction, desc=""):
+        try:
+            progress(fraction, desc=desc)
+        except Exception:
+            pass
+
     try:
-        output_path = _run_pipeline(task_type, write_output=True, kwargs=kwargs)
+        output_path = _run_pipeline(task_type, write_output=True, kwargs=kwargs, progress_callback=progress_callback)
     except Exception as e:  # noqa: BLE001
         logger.error("generate failed: %s\n%s", e, traceback.format_exc())
         return None, None, kwargs["prompt"], f"Generation failed: {e}"

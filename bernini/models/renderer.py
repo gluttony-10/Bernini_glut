@@ -117,6 +117,7 @@ class BerniniRendererModel(PreTrainedModel):
         eta: float = 0.5,
         norm_threshold=(50.0, 50.0),
         momentum: float = -0.5,
+        progress_callback=None,
     ):
         self.t5_text_encoder = self.t5_text_encoder.to(device)
         prompt_embeds = self.encode_prompt(input_ids, attention_mask)
@@ -149,4 +150,5 @@ class BerniniRendererModel(PreTrainedModel):
             eta=eta,
             norm_threshold=norm_threshold,
             momentum=momentum,
+            progress_callback=progress_callback,
         )

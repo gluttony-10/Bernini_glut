@@ -297,7 +297,7 @@ class BerniniModel(PreTrainedModel):
         if self.config.diff_dec_config_path:
             skip_t2 = getattr(self.config, "skip_transformer_2", False)
             if getattr(self.config, "cotrain", False):
-                self.diff_dec = GEN_Wanx22(with_skip_config(config, skip_transformer_1=False, skip_transformer_2=skip_t2))
+                self.diff_dec = GEN_Wanx22(with_skip_config(config, skip_transformer_1=False, skip_transformer_2=True))
                 if not skip_t2:
                     self.diff_dec_low = GEN_Wanx22(with_skip_config(config, skip_transformer_1=True, skip_transformer_2=False))
                 else:

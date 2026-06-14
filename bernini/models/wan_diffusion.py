@@ -258,6 +258,7 @@ class GEN_Wanx22(nn.Module):
         eta=1.0,
         norm_threshold=(50.0, 50.0),
         momentum=0.0,
+        progress_callback=None,
     ):
         """Run guided sampling and return the predicted VAE latent `[B,C,T,H,W]`.
 
@@ -327,6 +328,8 @@ class GEN_Wanx22(nn.Module):
 
         progress_bar = tqdm(timesteps)
         for t_idx, t in enumerate(timesteps):
+            if progress_callback is not None:
+                progress_callback(0.20 + (t_idx / len(timesteps)) * 0.70, f"Diffusion sampling: step {t_idx+1}/{len(timesteps)}")
             model_id = "transformer_1" if t >= boundary_timestep else "transformer_2"
             cond_text = prompt_embeds_t1 if t >= boundary_timestep else prompt_embeds_t2
             uncond_text = uncond_embeds_t1 if t >= boundary_timestep else uncond_embeds_t2
@@ -573,6 +576,7 @@ class GEN_Wanx22(nn.Module):
         flow_shift=5.0,
         seed=42,
         device='cuda',
+        progress_callback=None,
         **kwargs,
     ):
         # only support batchsize=1
@@ -633,6 +637,8 @@ class GEN_Wanx22(nn.Module):
 
         progress_bar = tqdm(timesteps)
         for t_idx, t in enumerate(timesteps):
+            if progress_callback is not None:
+                progress_callback(0.35 + (t_idx / len(timesteps)) * 0.55, f"Diffusion sampling: step {t_idx+1}/{len(timesteps)}")
             model_id = "transformer_1" if t >= boundary_timestep else "transformer_2"
             if t < boundary_timestep and not switched and self.transformer_2 is not None:
                 

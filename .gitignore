@@ -28,5 +28,13 @@ results/
 # temporary tools
 fix_inputs.py
 monitor_and_shutdown.py
+inspect_dims.py
+print_dims.py
+quantize_models.py
+scratch_test_load.py
+test_qlinear.py
+upload_modelscope.py
+upload_modelscope_sdk.py
+ms_repo/
 
 .DS_Store
