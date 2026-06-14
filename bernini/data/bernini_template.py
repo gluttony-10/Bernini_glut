@@ -22,10 +22,20 @@ try:
     from veomni.utils.constants import IGNORE_INDEX
 except ModuleNotFoundError:
     IGNORE_INDEX = -100
-from veomni.utils import logging
-from .utils.attention_utils import build_custom_attention_mask
 
-logger = logging.get_logger(__name__)
+try:
+    from veomni.utils import logging
+    logger = logging.get_logger(__name__)
+except ModuleNotFoundError:
+    import logging as std_logging
+    class MockLogging:
+        @staticmethod
+        def get_logger(name):
+            return std_logging.getLogger(name)
+    logging = MockLogging()
+    logger = logging.get_logger(__name__)
+
+from .utils.attention_utils import build_custom_attention_mask
 
 
 class T5TextTokenizer:
