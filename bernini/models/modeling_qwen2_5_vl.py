@@ -84,17 +84,46 @@ except ModuleNotFoundError:
     IGNORE_INDEX = -100
     IMAGE_INPUT_INDEX = -200
     VIDEO_INPUT_INDEX = -300
-from veomni.distributed.parallel_state import get_parallel_state
-from veomni.distributed.sequence_parallel import (
-    gather_heads_scatter_seq,
-    gather_seq_scatter_heads,
-    pad_tensor,
-    reduce_sequence_parallel_loss,
-    unpad_tensor,
-    gather_outputs,
-)
-from veomni.utils.device import IS_CUDA_AVAILABLE
-from veomni.utils.import_utils import is_liger_kernel_available
+try:
+    from veomni.distributed.parallel_state import get_parallel_state
+    from veomni.distributed.sequence_parallel import (
+        gather_heads_scatter_seq,
+        gather_seq_scatter_heads,
+        pad_tensor,
+        reduce_sequence_parallel_loss,
+        unpad_tensor,
+        gather_outputs,
+    )
+    from veomni.utils.device import IS_CUDA_AVAILABLE
+    from veomni.utils.import_utils import is_liger_kernel_available
+except ModuleNotFoundError:
+    class MockParallelState:
+        @property
+        def sp_size(self):
+            return 1
+        @property
+        def sp_enabled(self):
+            return False
+        @property
+        def sp_group(self):
+            return None
+    _mock_parallel_state = MockParallelState()
+    def get_parallel_state():
+        return _mock_parallel_state
+    def gather_heads_scatter_seq(*args, **kwargs):
+        return args[0]
+    def gather_seq_scatter_heads(*args, **kwargs):
+        return args[0]
+    def pad_tensor(*args, **kwargs):
+        return args[0]
+    def reduce_sequence_parallel_loss(loss, *args, **kwargs):
+        return loss
+    def unpad_tensor(*args, **kwargs):
+        return args[0]
+    def gather_outputs(tensor, *args, **kwargs):
+        return tensor
+    IS_CUDA_AVAILABLE = torch.cuda.is_available()
+    is_liger_kernel_available = False
 from torch.nn.attention.flex_attention import flex_attention
 
 try:
