@@ -75,7 +75,12 @@ export BERNINI_PE_MODEL=...        # vision-capable chat model
 ### Gradio GUI
 You can run the interactive Web UI using the provided batch script (system will automatically optimize memory usage and budgets):
 ```cmd
-.\启动网页界面.bat
+.\01运行程序.bat
+```
+
+Or manually launch it in the terminal:
+```bash
+python gradio_demo.py --config models/Bernini_glut --port 7860
 ```
 
 ## 📑 Citation & Acknowledgements

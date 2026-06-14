@@ -75,7 +75,12 @@ export BERNINI_PE_MODEL=...        # 支持视觉的聊天模型
 ### 网页图形界面 (Gradio GUI)
 您可以通过提供的 batch 脚本一键启动交互式的网页版 UI（系统会自动判定内存与显存进行最优加载方案规划，无需手动传入配置参数）：
 ```cmd
-.\启动网页界面.bat
+.\01运行程序.bat
+```
+
+或者在终端手动执行以下命令启动：
+```bash
+python gradio_demo.py --config models/Bernini_glut --port 7860
 ```
 
 ## 📑 引用与致谢
