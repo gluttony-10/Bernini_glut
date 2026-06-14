@@ -24,12 +24,23 @@
 ### 环境要求
 - **Python** 3.11.2
 - **CUDA GPU** (在 24GB 显存的消费级显卡上经过深度测试)
-- **CUDA toolkit** 12.4
+- **CUDA toolkit** 12.4 / 12.8 / 13.0 及以上
 
-### 1. 安装代码
+### 1. 创建虚拟环境并安装代码
+为了配合一键启动脚本工作，我们建议在当前项目根目录下创建一个名为 `.glut` 的本地 Conda 虚拟环境：
+
 ```bash
+# 克隆代码库并进入
 git clone https://github.com/gluttony-10/Bernini_glut.git
 cd Bernini_glut
+
+# 创建位于项目根目录内的本地 conda 虚拟环境 (.glut)
+conda create --prefix ./.glut python=3.11 -y
+
+# 激活该虚拟环境
+conda activate ./.glut
+
+# 安装项目依赖包 (默认已配置 CUDA 12.8/13.0 支持)
 pip install -r requirements.txt
 ```
 

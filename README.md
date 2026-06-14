@@ -24,12 +24,23 @@
 ### Requirements
 - **Python** 3.11.2
 - **CUDA GPU** (Tested heavily on 24GB VRAM consumer GPUs)
-- **CUDA toolkit** 12.4
+- **CUDA toolkit** 12.4 / 12.8 / 13.0 or higher
 
-### 1. Install Code
+### 1. Create Virtual Environment & Install Code
+To match the startup script configurations, we recommend creating a local Conda virtual environment named `.glut` right inside the project root folder:
+
 ```bash
+# Clone the repository and navigate inside
 git clone https://github.com/gluttony-10/Bernini_glut.git
 cd Bernini_glut
+
+# Create the local Conda environment named (.glut)
+conda create --prefix ./.glut python=3.11 -y
+
+# Activate the local environment
+conda activate ./.glut
+
+# Install package dependencies (pre-configured with CUDA 12.8/13.0 wheel support)
 pip install -r requirements.txt
 ```
 
