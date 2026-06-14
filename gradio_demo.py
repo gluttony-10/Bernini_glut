@@ -50,6 +50,20 @@ import torch
 # on some GPU/driver architectures (common in experimental torch==2.10.0+cu130 builds)
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
+
+# Monkey patch optimum-quanto's qbytes_mm to prevent CUBLAS_STATUS_INVALID_VALUE crash due to non-contiguous layout
+try:
+    import optimum.quanto.library.qbytes_mm as qbytes_mm_mod
+    def patched_qbytes_mm(activations, weights, output_scales):
+        activations = activations.to(output_scales.dtype)
+        if weights.dtype.is_floating_point:
+            weights = weights.to(output_scales.dtype)
+        weights = output_scales * weights
+        return torch.matmul(activations.contiguous(), weights.t().contiguous())
+    qbytes_mm_mod.qbytes_mm = patched_qbytes_mm
+except Exception:
+    pass
+
 import torch.distributed as dist
 
 from bernini.cli import DEFAULT_NEG_PROMPT, GUIDANCE_MODES, build_pipeline
