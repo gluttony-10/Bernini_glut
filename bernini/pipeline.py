@@ -462,6 +462,33 @@ class BerniniPipeline:
                 if hasattr(self.model.diff_dec, "transformer_2") and self.model.diff_dec.transformer_2 is not None:
                     pipe_dict["transformer_2"] = self.model.diff_dec.transformer_2
             
+            # Detect available CUDA VRAM to adaptively allocate budgets
+            import torch
+            free_gpu_mem_mb = 0
+            if torch.cuda.is_available():
+                try:
+                    # Query free and total memory for the specified device
+                    free_bytes, total_bytes = torch.cuda.mem_get_info(self.device)
+                    free_gpu_mem_mb = free_bytes / (1024 ** 2)
+                    total_gpu_mem_mb = total_bytes / (1024 ** 2)
+                    logger.info(f"Detected CUDA VRAM: Free = {free_gpu_mem_mb:.2f} MB, Total = {total_gpu_mem_mb:.2f} MB on device {self.device}")
+                except Exception as mem_err:
+                    logger.warning(f"Could not query CUDA memory: {mem_err}")
+            
+            # Decide the budget dynamically
+            dit_budget = 4000
+            if free_gpu_mem_mb > 0:
+                if free_gpu_mem_mb > 35000:
+                    dit_budget = 14000  # For A100/H100/A800 (40GB/80GB)
+                elif free_gpu_mem_mb > 20000:
+                    dit_budget = 9000   # For RTX 3090/4090/A10G (24GB)
+                elif free_gpu_mem_mb > 14000:
+                    dit_budget = 6000   # For 16GB VRAM GPUs
+                else:
+                    dit_budget = 4000   # Default conservative budget
+            
+            logger.info(f"Setting mmgp offload budgets for 'transformer' and 'transformer_2' to {dit_budget} MB.")
+            
             logger.info("Initializing global mmgp.offload.all for all components...")
             offload.all(
                 pipe_dict,
@@ -471,8 +498,8 @@ class BerniniPipeline:
                 vram_safety_coefficient=0.85,
                 verboseLevel=2,
                 budgets={
-                    "transformer": 4000,
-                    "transformer_2": 4000,
+                    "transformer": dit_budget,
+                    "transformer_2": dit_budget,
                 }
             )
         except Exception as e:
