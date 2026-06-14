@@ -12,7 +12,7 @@ echo ===================================================
 set CUDA_VISIBLE_DEVICES=0
 
 :: Run Gradio demo in low memory mode using local conda environment python executable
-"%CONDA_ENV%\python.exe" gradio_demo.py --config models/Bernini-Diffusers --port 7860 --low_vram
+"%CONDA_ENV%\python.exe" gradio_demo.py --config models/Bernini_glut --port 7860 --low_vram
 
 if %errorlevel% neq 0 (
     echo.
