@@ -493,6 +493,7 @@ class BerniniPipeline:
                 do_quantize=False,
                 modelClass=BerniniModel,
                 forcedConfigPath=os.path.join(ckpt, "config.json"),
+                default_dtype=get_target_dtype(),
                 configKwargs=dict(
                     base_dir=None,
                     diff_dec_config_path=ckpt,
@@ -517,6 +518,7 @@ class BerniniPipeline:
                         do_quantize=False,
                         modelClass=Qwen2_5_VLForConditionalGeneration,
                         forcedConfigPath=os.path.join(config.mllm_config_path, config.mllm_subfolder or "", "config.json"),
+                        default_dtype=get_target_dtype(),
                     )
                 else:
                     model.mllm = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -537,6 +539,7 @@ class BerniniPipeline:
                         do_quantize=False,
                         modelClass=UMT5EncoderModel,
                         forcedConfigPath=os.path.join(config.t5_text_encoder_path, config.t5_text_encoder_subfolder or "", "config.json"),
+                        default_dtype=get_target_dtype(),
                     )
                 else:
                     model.t5_text_encoder = UMT5EncoderModel.from_pretrained(
@@ -581,6 +584,7 @@ class BerniniPipeline:
                 do_quantize=False,
                 modelClass=AutoencoderKLWan,
                 forcedConfigPath=os.path.join(config.vae_model_path, config.vae_subfolder or "vae", "config.json"),
+                default_dtype=get_target_dtype(),
             )
         else:
             vae = AutoencoderKLWan.from_pretrained(

@@ -272,6 +272,7 @@ class BerniniModel(PreTrainedModel):
                     do_quantize=False,
                     modelClass=Qwen2_5_VLForConditionalGeneration,
                     forcedConfigPath=os.path.join(self.config.mllm_config_path, self.config.mllm_subfolder or "", "config.json"),
+                    default_dtype=get_target_dtype(),
                 )
             else:
                 mllm_config = Qwen2_5_VLConfig.from_pretrained(
@@ -353,6 +354,7 @@ class BerniniModel(PreTrainedModel):
                         do_quantize=False,
                         modelClass=UMT5EncoderModel,
                         forcedConfigPath=os.path.join(config.t5_text_encoder_path, config.t5_text_encoder_subfolder or "", "config.json"),
+                        default_dtype=get_target_dtype(),
                     )
                 else:
                     return UMT5EncoderModel.from_pretrained(
