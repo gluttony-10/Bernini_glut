@@ -573,28 +573,11 @@ def _on_task_change(task_type: str):
     )
 
 
-# 日间模式 + 护眼配色：暖灰背景、柔和主色、降低对比度
-_theme = (
-    gr.themes.Soft(
-        primary_hue="blue",
-        secondary_hue="slate",
-        neutral_hue="stone",
-        font=[gr.themes.GoogleFont("IBM Plex Sans")],
-    ).set(
-        body_background_fill="#fafafa",
-        block_background_fill="#ffffff",
-        block_border_color="#e8e6e1",
-        body_text_color="#000000",
-        block_label_text_color="#000000",
-        block_title_text_color="#000000",
-        input_background_fill="#f0f0f0",
-        input_border_color="#b8d0e8",
-        button_secondary_background_fill="#e8f0f8",
-        button_secondary_background_fill_hover="#d5e6f5",
-        button_secondary_text_color="#000000",
-        button_secondary_border_color="#b8d0e8",
-    )
+# 柔和主题 + 指定字体
+_theme = gr.themes.Soft(
+    font=[gr.themes.GoogleFont("IBM Plex Sans")],
 )
+
 
 
 def create_ui():
