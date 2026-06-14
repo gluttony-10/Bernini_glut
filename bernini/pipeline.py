@@ -93,18 +93,13 @@ def _prefer_local_dir(current, config_dir, *required):
     already-downloaded directory is not re-fetched from the Hub.
     """
     config_dir = _resolve_cached_hf_path(config_dir)
-    if current is not None and os.path.exists(current):
-        return current
+    # Force loading from our specified local config_dir if components exist there
     if os.path.isdir(config_dir) and all(
         os.path.exists(os.path.join(config_dir, r)) for r in required if r
     ):
-        if current is not None and current != config_dir:
-            logger.info(
-                "component path '%s' not found locally; loading from '%s' instead",
-                current,
-                config_dir,
-            )
         return config_dir
+    if current is not None and os.path.exists(current):
+        return current
     current = _resolve_cached_hf_path(current)
     if current is not None and os.path.exists(current):
         return current
@@ -115,11 +110,12 @@ def _prefer_local_file(current, config_dir, *parts):
     """Like _prefer_local_dir, but the local candidate is an entry inside
     `config_dir` rather than the directory itself."""
     config_dir = _resolve_cached_hf_path(config_dir)
-    if current is not None and os.path.exists(current):
-        return current
+    # Force loading from our specified local config_dir if the target file exists there
     candidate = os.path.join(config_dir, *parts)
     if os.path.exists(candidate):
         return candidate
+    if current is not None and os.path.exists(current):
+        return current
     current = _resolve_cached_hf_path(current)
     if current is not None and os.path.exists(current):
         return current
