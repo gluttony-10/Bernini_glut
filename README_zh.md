@@ -52,22 +52,13 @@ snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 
 ## 🚀 使用方法
 
-### 小内存极速模式 (32GB RAM / 24GB VRAM)
-
-**一键傻瓜式启动：**
-我们提供了一个开箱即用的本地推理测试脚本：`03低显存推理测试.bat`。
-该脚本会自动设置 `expandable_segments:True` 环境变量来防止 PyTorch 显存碎片化导致 OOM，并自动加上 `--low_vram` 参数运行推理。
-
-在 Windows 系统下，只需双击 **`03低显存推理测试.bat`** 即可，或在命令行运行：
-```cmd
-.\03低显存推理测试.bat
-```
-
-**手动执行命令：**
-如果您希望手动运行其他案例，请使用以下命令：
-```cmd
-export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
-python infer_single_gpu.py --config models/Bernini-Diffusers --case assets/testcases/v2v/v2v_case1.json --low_vram
+### 单卡推理测试
+项目底层会自动检测物理内存和可用显存，自适应配置模型加载和优化策略，无需手动指定参数：
+```bash
+# 建议先设置环境变量防止显存碎片化
+set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+# 运行单卡推理
+python infer_single_gpu.py --config models/Bernini_glut --case assets/testcases/v2v/v2v_case1.json
 ```
 
 ### 样例文件 (Case files)
@@ -82,13 +73,9 @@ export BERNINI_PE_MODEL=...        # 支持视觉的聊天模型
 ```
 
 ### 网页图形界面 (Gradio GUI)
-您也可以通过提供的 batch 脚本启动交互式的网页版 UI（默认普通显存模式）：
+您可以通过提供的 batch 脚本一键启动交互式的网页版 UI（系统会自动判定内存与显存进行最优加载方案规划，无需手动传入配置参数）：
 ```cmd
-.\01启动网页界面.bat
-```
-针对 32GB 物理内存 / 24GB 显存设备，推荐使用低内存网页启动脚本：
-```cmd
-.\02启动低内存网页界面.bat
+.\启动网页界面.bat
 ```
 
 ## 📑 引用与致谢

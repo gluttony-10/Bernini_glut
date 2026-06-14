@@ -52,22 +52,13 @@ snapshot_download('Gluttony10/Bernini_glut', local_dir='models/Bernini_glut')
 
 ## 🚀 Usage
 
-### Low RAM Optimization Mode (32GB RAM / 24GB VRAM)
-
-**One-Click Startup:**
-We have provided a ready-to-use offline inference test script: `03低显存推理测试.bat`.
-This script automatically sets `expandable_segments:True` to prevent PyTorch memory fragmentation and runs the inference script with the `--low_vram` flag.
-
-Simply double-click **`03低显存推理测试.bat`** in Windows, or run it via command line:
-```cmd
-.\03低显存推理测试.bat
-```
-
-**Manual Command:**
-Alternatively, you can manually run:
+### Single GPU Inference Test
+The system will automatically detect your physical memory and GPU VRAM at runtime and adaptively configure offload strategy and budgets, without requiring manual config flags:
 ```bash
-export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
-python infer_single_gpu.py --config models/Bernini-Diffusers --case assets/testcases/v2v/v2v_case1.json --low_vram
+# Recommended environment setting to prevent PyTorch memory fragmentation
+set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+# Run the single GPU inference
+python infer_single_gpu.py --config models/Bernini_glut --case assets/testcases/v2v/v2v_case1.json
 ```
 
 ### Case files
@@ -82,13 +73,9 @@ export BERNINI_PE_MODEL=...        # vision-capable chat model
 ```
 
 ### Gradio GUI
-You can run the interactive Web UI using the provided batch script (standard memory mode):
+You can run the interactive Web UI using the provided batch script (system will automatically optimize memory usage and budgets):
 ```cmd
-.\01启动网页界面.bat
-```
-For users with 32GB RAM / 24GB VRAM devices, we recommend launching the Web UI with the low memory mode script:
-```cmd
-.\02启动低内存网页界面.bat
+.\启动网页界面.bat
 ```
 
 ## 📑 Citation & Acknowledgements
