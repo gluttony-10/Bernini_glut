@@ -110,7 +110,7 @@ python glut.py --config models/Bernini_glut --port 7860
   year    = {2026}
 }
 ```
-Bernini 建立在诸如 Wan2.2、Qwen2.5-VL 以及 VeOmni 等杰出的开源项目之上，感谢原作者们的贡献。
+特别感谢 ByteDance 团队开源的 [Bernini](https://github.com/ByteDance-Seed/Bernini) 杰出工作。本优化分支建立在 Bernini 以及 Wan2.2、Qwen2.5-VL、VeOmni 等优秀开源项目之上，向所有原作者团队致以最诚挚的感谢！
 
 ## 📄 许可证
 Apache License 2.0. 参见 [LICENSE](LICENSE)。

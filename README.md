@@ -110,7 +110,7 @@ If you use Bernini in your research, please cite the original paper:
   year    = {2026}
 }
 ```
-Bernini builds on outstanding open-source projects including Wan2.2, Qwen2.5-VL, and VeOmni.
+Special thanks to the ByteDance team for open-sourcing the outstanding [Bernini](https://github.com/ByteDance-Seed/Bernini) project. This optimized branch is built on top of Bernini, as well as other excellent projects including Wan2.2, Qwen2.5-VL, and VeOmni. We express our sincere gratitude to all the original authors and teams!
 
 ## 📄 License
 Apache License 2.0. See [LICENSE](LICENSE).
