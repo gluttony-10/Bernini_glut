@@ -729,6 +729,8 @@ def parse_args():
     parser.add_argument("--pe_model", type=str, default=None)
     parser.add_argument("--low_vram", action="store_true",
                         help="Skip loading transformer_2 to fit into 32GB RAM")
+    parser.add_argument("--inbrowser", action="store_true",
+                        help="Automatically open the Gradio UI in a web browser")
     return parser.parse_args()
 
 
@@ -781,6 +783,7 @@ def main():
                 server_name="0.0.0.0",
                 server_port=args.port,
                 share=args.share,
+                inbrowser=args.inbrowser,
                 allowed_paths=[os.path.abspath(SAVE_BASE)],
             )
         finally:
