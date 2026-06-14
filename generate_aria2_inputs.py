@@ -8,7 +8,7 @@ def main():
     print("Fetching file list from HF mirror...")
     files = api.model_info(repo_id).siblings
     
-    local_dir_base = os.path.abspath("models/Bernini-Diffusers")
+    local_dir_base = os.path.abspath("models/Bernini_glut")
     
     input_file_path = "aria2_inputs.txt"
     with open(input_file_path, "w", encoding="utf-8") as f:
