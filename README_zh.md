@@ -80,7 +80,7 @@ export BERNINI_PE_MODEL=...        # 支持视觉的聊天模型
 
 或者在终端手动执行以下命令启动：
 ```bash
-python gradio_demo.py --config models/Bernini_glut --port 7860
+python glut.py --config models/Bernini_glut --port 7860
 ```
 
 ## 📑 引用与致谢

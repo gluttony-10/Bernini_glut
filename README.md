@@ -80,7 +80,7 @@ You can run the interactive Web UI using the provided batch script (system will 
 
 Or manually launch it in the terminal:
 ```bash
-python gradio_demo.py --config models/Bernini_glut --port 7860
+python glut.py --config models/Bernini_glut --port 7860
 ```
 
 ## 📑 Citation & Acknowledgements
