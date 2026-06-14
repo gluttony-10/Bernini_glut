@@ -18,6 +18,7 @@ tqdm
 ftfy
 ninja
 scipy
+mmgp
 
 # ---- Video / image I/O ----
 decord
