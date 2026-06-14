@@ -17,6 +17,15 @@
 import torch
 
 
+def get_target_dtype():
+    try:
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+    except Exception:
+        pass
+    return torch.float16
+
+
 class FlowMatchScheduler:
     def __init__(
         self,
@@ -44,8 +53,10 @@ class FlowMatchScheduler:
         denoising_strength: float = 1.0,
         shift: float = None,
         device=None,
-        dtype: torch.dtype = torch.bfloat16,
+        dtype: torch.dtype = None,
     ):
+        if dtype is None:
+            dtype = get_target_dtype()
         if shift is not None:
             self.shift = shift
         if device is None:

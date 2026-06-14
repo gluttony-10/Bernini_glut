@@ -24,6 +24,15 @@ from transformers import UMT5EncoderModel
 from transformers.configuration_utils import PretrainedConfig
 from transformers.modeling_utils import PreTrainedModel
 
+
+def get_target_dtype():
+    try:
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+    except Exception:
+        pass
+    return torch.float16
+
 from .wan_diffusion import GEN_Wanx22
 
 
@@ -61,7 +70,7 @@ class BerniniRendererModel(PreTrainedModel):
         super().__init__(config)
         self.max_sequence_length = config.max_sequence_length
         self.t5_text_encoder = UMT5EncoderModel.from_pretrained(
-            config.wan22_base, subfolder="text_encoder", torch_dtype=torch.bfloat16
+            config.wan22_base, subfolder="text_encoder", torch_dtype=get_target_dtype()
         )
         self.diff_dec = GEN_Wanx22(config)
         for param in self.parameters():

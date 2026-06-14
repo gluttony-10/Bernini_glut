@@ -29,6 +29,15 @@ from .modeling_qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
 logger = logging.get_logger(__name__)
 
 
+def get_target_dtype():
+    try:
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+    except Exception:
+        pass
+    return torch.float16
+
+
 def _join_subfolder(base_subfolder, leaf):
     if base_subfolder:
         return f"{base_subfolder}/{leaf}"
@@ -273,7 +282,7 @@ class BerniniModel(PreTrainedModel):
                     self.mllm = Qwen2_5_VLForConditionalGeneration._from_config(
                         mllm_config,
                         attn_implementation=config.mllm_attn_implementation,
-                        torch_dtype=torch.bfloat16,
+                        torch_dtype=get_target_dtype(),
                     )
                 else:
                     self.mllm = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -349,7 +358,7 @@ class BerniniModel(PreTrainedModel):
                     return UMT5EncoderModel.from_pretrained(
                         config.t5_text_encoder_path,
                         subfolder=config.t5_text_encoder_subfolder,
-                        torch_dtype=torch.bfloat16,
+                        torch_dtype=get_target_dtype(),
                     )
 
             # Stagger loading across ranks to reduce peak memory
@@ -542,7 +551,7 @@ class BerniniModel(PreTrainedModel):
         visual_input_mask,
         visual_output_mask,
     ):
-        inputs_embeds = self.mllm.get_input_embeddings()(input_ids).to(dtype=torch.bfloat16)
+        inputs_embeds = self.mllm.get_input_embeddings()(input_ids).to(dtype=get_target_dtype())
 
         if visual_embeds is not None and len(visual_embeds) > 0:
             visual_mask = visual_input_mask | visual_output_mask

@@ -28,6 +28,15 @@ from einops import rearrange
 from tqdm import tqdm
 from transformers.utils import logging
 
+
+def get_target_dtype():
+    try:
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+    except Exception:
+        pass
+    return torch.float16
+
 from .scheduler import FlowMatchScheduler
 from .transformer_wan import WanTransformer3DModel
 
@@ -49,7 +58,7 @@ def _build_wan_transformer_from_config(config_dict, *, use_src_id_rotary_emb: bo
     config_dict["use_src_id_rotary_emb"] = use_src_id_rotary_emb
     default_dtype = torch.get_default_dtype()
     try:
-        torch.set_default_dtype(torch.bfloat16)
+        torch.set_default_dtype(get_target_dtype())
         return WanTransformer3DModel.from_config(config_dict)
     finally:
         torch.set_default_dtype(default_dtype)
@@ -149,7 +158,7 @@ class GEN_Wanx22(nn.Module):
 
         common = dict(
             use_src_id_rotary_emb=config.use_src_id_rotary_emb,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=get_target_dtype(),
         )
         # from_pretrained loads the Wan2.2 base transformer (bf16, with the
         # precision-sensitive modules kept in fp32); the Bernini checkpoint is
@@ -567,7 +576,7 @@ class GEN_Wanx22(nn.Module):
         **kwargs,
     ):
         # only support batchsize=1
-        weight_dtype = torch.bfloat16
+        weight_dtype = get_target_dtype()
 
         if self.use_unipc:
             self.scheduler = UniPCMultistepScheduler.from_config(self.config.scheduler_config_path, flow_shift=flow_shift)

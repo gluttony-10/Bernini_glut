@@ -37,7 +37,7 @@ from .models.modeling_qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
 from .data.bernini_process import bernini_process_sample
 from .data.bernini_template import BerniniTemplate
 from .data.utils.video_utils import PathVideoReader, smart_video_nframes
-from .data_utils import make_divisible, preprocess_image, preprocess_video, tensor_to_bytes, get_vit_features, get_vae_features, FakeVideoReader, create_fake_image, VAEVideoTransform
+from .data_utils import make_divisible, preprocess_image, preprocess_video, tensor_to_bytes, get_vit_features, get_vae_features, FakeVideoReader, create_fake_image, VAEVideoTransform, get_target_dtype
 from .io_utils import save_output
 from .models import BerniniConfig, BerniniModel
 from .models import BerniniRendererConfig, BerniniRendererModel
@@ -167,7 +167,7 @@ def _prompt_clean(text: str) -> str:
 def _vae_encode(vae, x: torch.Tensor) -> torch.Tensor:
     """Encode `[1,C,T,H,W]` pixels into normalized VAE latents."""
     is_quantized = any(hasattr(m, 'qweight') for m in vae.modules())
-    target_dtype = torch.bfloat16 if is_quantized else torch.float32
+    target_dtype = get_target_dtype() if is_quantized else torch.float32
     x = x.to(dtype=target_dtype)
     latents = vae.encode(x).latent_dist.mode()
     z = vae.config.z_dim
@@ -194,7 +194,7 @@ def _get_t5_text_ids(text, tokenizer, max_length: int = 512):
 def _vae_decode(vae, latents: torch.Tensor):
     """Decode VAE latents into a numpy clip `[T, H, W, C]` in [0, 1]."""
     is_quantized = any(hasattr(m, 'qweight') for m in vae.modules())
-    target_dtype = torch.bfloat16 if is_quantized else torch.float32
+    target_dtype = get_target_dtype() if is_quantized else torch.float32
     latents = latents.to(dtype=target_dtype)
     z = vae.config.z_dim
     mean = torch.tensor(vae.config.latents_mean, device=latents.device, dtype=latents.dtype).view(1, z, 1, 1, 1)
@@ -213,7 +213,7 @@ class BerniniRendererPipeline:
         self.vae = vae
         self.tokenizer = tokenizer
         self.device = device
-        self.weight_dtype = torch.bfloat16
+        self.weight_dtype = get_target_dtype()
 
     @classmethod
     def from_pretrained(
@@ -391,7 +391,7 @@ class BerniniPipeline:
         self.t5_tokenizer = t5_tokenizer
         self.vit_processor = vit_processor
         self.device = device
-        self.weight_dtype = torch.bfloat16
+        self.weight_dtype = get_target_dtype()
         self.text_encoder = model.mllm
         self.connector = getattr(model, "connector", None)
 
@@ -455,7 +455,7 @@ class BerniniPipeline:
                 pipe_dict,
                 pinnedMemory=False,
                 quantizeTransformer=False,
-                convertWeightsFloatTo=torch.bfloat16,
+                convertWeightsFloatTo=get_target_dtype(),
                 vram_safety_coefficient=0.85,
                 verboseLevel=2,
                 budgets={
@@ -542,7 +542,7 @@ class BerniniPipeline:
                     model.t5_text_encoder = UMT5EncoderModel.from_pretrained(
                         config.t5_text_encoder_path,
                         subfolder=config.t5_text_encoder_subfolder,
-                        torch_dtype=torch.bfloat16,
+                        torch_dtype=get_target_dtype(),
                     )
                 model.t5_text_encoder.eval()
                 for param in model.t5_text_encoder.parameters():

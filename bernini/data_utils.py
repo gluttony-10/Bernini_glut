@@ -29,6 +29,15 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms import functional as F
 
 
+def get_target_dtype():
+    try:
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+    except Exception:
+        pass
+    return torch.float16
+
+
 def make_divisible(value: int, stride: int) -> int:
     """Round `value` to the nearest multiple of `stride` (at least `stride`)."""
     return max(stride, int(round(value / stride) * stride))
@@ -304,7 +313,7 @@ def get_vit_features(mllm_model, pixel_values, image_grid_thw):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     pixel_values = pixel_values.type(mllm_model.dtype).to(device)
     image_grid_thw = image_grid_thw.to(device)
-    with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16):
+    with torch.no_grad(), torch.amp.autocast("cuda", dtype=get_target_dtype()):
         image_embeds = mllm_model.visual(pixel_values, grid_thw=image_grid_thw)
     split_sizes = (image_grid_thw.prod(-1) //
                    mllm_model.visual.spatial_merge_size**2).tolist()
@@ -317,10 +326,10 @@ def get_vae_features(vae_model, x):
     elif x.ndim != 4:
         raise ValueError(f"Expected image/video tensor with 3 or 4 dims, got shape={tuple(x.shape)}")
     is_quantized = any(hasattr(m, 'qweight') for m in vae_model.modules())
-    target_dtype = torch.bfloat16 if is_quantized else torch.float32
+    target_dtype = get_target_dtype() if is_quantized else torch.float32
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     x = x.unsqueeze(0).to(dtype=target_dtype, device=device)
-    with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16 if is_quantized else torch.float32):
+    with torch.no_grad(), torch.amp.autocast("cuda", dtype=get_target_dtype() if is_quantized else torch.float32):
         latent_dist = vae_model.encode(x).latent_dist
     latent_dist = latent_dist.parameters.detach().cpu()
     return tensor_to_bytes(latent_dist)
