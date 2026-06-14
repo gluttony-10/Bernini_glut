@@ -24,7 +24,7 @@
 ### Requirements
 - **Python** 3.11.2
 - **CUDA GPU** (Tested heavily on 24GB VRAM consumer GPUs)
-- **CUDA toolkit** 12.4 / 12.8 / 13.0 or higher
+- **CUDA toolkit** 13.0 or higher
 
 ### 1. Create Virtual Environment & Install Code
 To match the startup script configurations, we recommend creating a local Conda virtual environment named `.glut` right inside the project root folder:
