@@ -46,6 +46,10 @@ from datetime import datetime, timedelta
 
 import gradio as gr
 import torch
+# Disable TF32 to prevent CUBLAS_STATUS_INVALID_VALUE crash during bf16 GEMM execution
+# on some GPU/driver architectures (common in experimental torch==2.10.0+cu130 builds)
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
 import torch.distributed as dist
 
 from bernini.cli import DEFAULT_NEG_PROMPT, GUIDANCE_MODES, build_pipeline

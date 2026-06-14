@@ -28,6 +28,8 @@ Full Bernini example:
 import argparse
 
 import torch
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
 
 from bernini.cli import (
     add_common_args,
