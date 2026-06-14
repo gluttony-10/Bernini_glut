@@ -126,9 +126,63 @@ def setup_logging():
     )
 
 
+def get_system_ram_gb():
+    try:
+        import os
+        page_size = os.sysconf('SC_PAGE_SIZE')
+        phys_pages = os.sysconf('SC_PHYS_PAGES')
+        return (page_size * phys_pages) / (1024 ** 3)
+    except Exception:
+        pass
+
+    try:
+        import ctypes
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+        stat = MEMORYSTATUSEX()
+        stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+        return stat.ullTotalPhys / (1024 ** 3)
+    except Exception:
+        pass
+
+    return 64.0  # default fallback
+
+
 def build_pipeline(args, device):
     config_dict, _ = PretrainedConfig.get_config_dict(args.config)
     model_type = config_dict.get("model_type")
+
+    # Auto-detect whether to skip transformer_2 based on system RAM
+    skip_t2 = args.low_vram
+    if not skip_t2:
+        ram_gb = get_system_ram_gb()
+        if ram_gb < 40.0:
+            logging.getLogger("bernini.cli").warning(
+                "检测到系统物理内存仅有 %.2f GB (低于 40.0 GB)。"
+                "为了避免系统因内存不足(Swap/OOM)严重卡顿，已自动开启 --low_vram 模式 (跳过 transformer_2 加载)。",
+                ram_gb
+            )
+            skip_t2 = True
+        else:
+            logging.getLogger("bernini.cli").info(
+                "系统物理内存为 %.2f GB，充足。默认不开启 --low_vram 模式，将完整加载模型以获取最佳生成效果。",
+                ram_gb
+            )
+    else:
+        logging.getLogger("bernini.cli").info(
+            "已通过参数或配置手动指定 --low_vram 模式，将跳过 transformer_2 以节省内存。"
+        )
 
     if model_type == "bernini":
         if args.high_noise_ckpt is not None or args.low_noise_ckpt is not None:
@@ -144,7 +198,7 @@ def build_pipeline(args, device):
             device=device,
             use_unipc=args.use_unipc,
             use_src_id_rotary_emb=args.use_src_tgt_id,
-            skip_transformer_2=args.low_vram,
+            skip_transformer_2=skip_t2,
         )
 
     if (args.high_noise_ckpt is None) != (args.low_noise_ckpt is None):
