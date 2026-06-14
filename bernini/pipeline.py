@@ -522,7 +522,7 @@ class BerniniPipeline:
                 elif free_gpu_mem_mb > 27000:    # 32GB VRAM 档
                     dit_budget = 13000
                 elif free_gpu_mem_mb > 20000:    # 24GB VRAM 档
-                    dit_budget = 10000
+                    dit_budget = 6000
                 elif free_gpu_mem_mb > 14000:    # 16GB VRAM 档
                     dit_budget = 6500
                 elif free_gpu_mem_mb > 10000:    # 12GB VRAM 档
@@ -532,14 +532,14 @@ class BerniniPipeline:
             
             logger.info(f"Setting mmgp offload budgets for 'transformer' and 'transformer_2' to {dit_budget} MB.")
             
-            # Enable pinned memory if system physical RAM is large enough (>= 40.0 GB)
+            # Enable pinned memory if system physical RAM is large enough (>= 24.0 GB)
             ram_gb = get_system_ram_gb()
             pinned_memory = False
-            if ram_gb >= 40.0:
+            if ram_gb >= 24.0:
                 pinned_memory = True
-                logger.info(f"System RAM is {ram_gb:.2f} GB (>= 40.0 GB), enabling pinned memory for faster CPU-GPU transfers.")
+                logger.info(f"System RAM is {ram_gb:.2f} GB (>= 24.0 GB), enabling pinned memory for faster CPU-GPU transfers.")
             else:
-                logger.info(f"System RAM is {ram_gb:.2f} GB (< 40.0 GB), pinned memory disabled to conserve RAM.")
+                logger.info(f"System RAM is {ram_gb:.2f} GB (< 24.0 GB), pinned memory disabled to conserve RAM.")
             
             logger.info("Initializing global mmgp.offload.all for all components...")
             offload.all(

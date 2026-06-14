@@ -26,6 +26,8 @@ Full Bernini example:
 """
 
 import argparse
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 import torch
 torch.backends.cuda.matmul.allow_tf32 = False

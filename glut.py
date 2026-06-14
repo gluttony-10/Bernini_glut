@@ -40,6 +40,7 @@ Multi-GPU full Bernini with Ulysses sequence parallel:
 import argparse
 import logging
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import tempfile
 import traceback
 from datetime import datetime, timedelta
